@@ -1,0 +1,677 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Ambulance Suspension Simulator</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400&display=swap">
+<style>
+/* Layout: a lab-report web companion to the deck. Navy header band with view tabs; controls rail + readings + plots. Same palette as the slides. */
+:root {
+  --bg: #F3F5F9; --panel: #FFFFFF; --raised: #F7F9FC; --line: #D8DFEA; --ink: #14213A; --sub: #3E4C63; --mut: #6B7890;
+  --navy: #1B3A6B; --navy-ink: #FFFFFF; --head: #1B3A6B; --head-sub: #C9D6EC;
+  --soft: #D9822B; --stock: #1B3A6B; --stiff: #C0392B; --smart: #0F8B7D; --band: rgba(217,130,43,.13);
+  --ok: #1E7D4F; --bad: #B23A2E;
+  --serif: "Source Serif 4", "Iowan Old Style", Georgia, "Times New Roman", serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0D1422; --panel: #141E31; --raised: #19253C; --line: #283754; --ink: #E7ECF5; --sub: #B6C1D4; --mut: #8592A9;
+  --navy: #7FA6E6; --navy-ink: #0D1422; --head: #10203D; --head-sub: #9FB3D6;
+  --soft: #F0A35A; --stock: #8FB2F0; --stiff: #EE7466; --smart: #3CC4B2; --band: rgba(240,163,90,.14);
+  --ok: #5CC98E; --bad: #F08A7C; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #0D1422; --panel: #141E31; --raised: #19253C; --line: #283754; --ink: #E7ECF5; --sub: #B6C1D4; --mut: #8592A9;
+  --navy: #7FA6E6; --navy-ink: #0D1422; --head: #10203D; --head-sub: #9FB3D6;
+  --soft: #F0A35A; --stock: #8FB2F0; --stiff: #EE7466; --smart: #3CC4B2; --band: rgba(240,163,90,.14);
+  --ok: #5CC98E; --bad: #F08A7C; color-scheme: dark; }
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { background: var(--bg); color: var(--ink); font-family: var(--serif); font-size: 16px; line-height: 1.5; font-variant-numeric: tabular-nums; }
+.band { background: var(--head); color: #fff; }
+.band-in, .wrap { max-width: 1280px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.band-in { padding-block: 22px 0; display: grid; gap: 14px; }
+.kicker { font-size: 13px; letter-spacing: .14em; text-transform: uppercase; color: #F2B36E; margin: 0; }
+h1 { font-size: clamp(26px, 3.4vw, 36px); line-height: 1.15; margin: 0; font-weight: 700; text-wrap: balance; color: #fff; }
+.lede { color: var(--head-sub); margin: 0; max-width: 70ch; }
+nav { display: flex; gap: 4px; flex-wrap: wrap; }
+nav a { color: var(--head-sub); text-decoration: none; padding: 9px 16px; border-radius: 8px 8px 0 0; font-weight: 600; }
+nav a:hover { color: #fff; }
+nav a[aria-current="page"] { background: var(--bg); color: var(--ink); }
+a:focus-visible, button:focus-visible, input:focus-visible { outline: 2px solid var(--soft); outline-offset: 2px; }
+.wrap { padding-block: 22px 48px; display: grid; gap: 20px; }
+h2 { font-size: 21px; margin: 0; font-weight: 700; }
+h3 { font-size: 13px; letter-spacing: .1em; text-transform: uppercase; margin: 0; color: var(--mut); font-weight: 600; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; min-width: 0; }
+.card-head { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: baseline; justify-content: space-between; margin-bottom: 8px; }
+.cap { font-size: 14px; color: var(--mut); margin: 6px 0 0; }
+.cap b { color: var(--sub); }
+
+/* simulate view */
+.sim { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 20px; align-items: start; }
+@media (max-width: 900px) { .sim { grid-template-columns: minmax(0, 1fr); } }
+.rail { display: grid; gap: 16px; position: sticky; top: max(12px, env(safe-area-inset-top, 0px)); }
+@media (max-width: 900px) { .rail { position: static; } }
+.presets { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.presets a { text-align: center; text-decoration: none; color: var(--ink); background: var(--raised); border: 1px solid var(--line); border-left: 4px solid var(--c); border-radius: 6px; padding: 7px 8px; font-weight: 600; font-size: 15px; }
+.presets a[aria-current="true"] { background: var(--c); color: #fff; }
+.ctl { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; align-items: baseline; }
+.ctl label { font-size: 15px; color: var(--sub); }
+.ctl output { font-weight: 600; }
+.ctl input[type=range] { grid-column: 1 / -1; width: 100%; accent-color: var(--navy); margin: 2px 0 0; }
+.ctl .hint { grid-column: 1 / -1; font-size: 13.5px; color: var(--mut); }
+.seg { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.seg button { font: 600 15px var(--serif); padding: 8px; border: 0; background: var(--raised); color: var(--sub); cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--navy); color: var(--navy-ink); }
+.fixed-note { font-size: 13.5px; color: var(--mut); margin: 0; }
+.right { display: grid; gap: 16px; min-width: 0; }
+.tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 1100px) { .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.tile { background: var(--panel); border: 1px solid var(--line); border-top: 4px solid var(--c); border-radius: 8px; padding: 12px 14px; display: grid; gap: 3px; align-content: start; }
+.tile .v { font-size: 30px; font-weight: 700; line-height: 1.1; }
+.tile .v small { font-size: 15px; font-weight: 400; color: var(--sub); margin-left: 3px; }
+.tile .d { font-size: 14px; color: var(--mut); }
+.tile .d.good { color: var(--ok); } .tile .d.bad { color: var(--bad); }
+.tile .w { font-size: 13.5px; color: var(--mut); }
+.chip { justify-self: start; font-size: 13px; padding: 0 8px; border-radius: 999px; border: 1px solid currentColor; }
+.derived { display: flex; flex-wrap: wrap; gap: 4px 22px; font-size: 15px; color: var(--sub); }
+.derived b { color: var(--ink); }
+.two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
+@media (max-width: 1100px) { .two { grid-template-columns: minmax(0, 1fr); } }
+canvas { display: block; width: 100%; }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 14px; color: var(--sub); align-items: center; }
+.legend i { display: inline-block; width: 18px; height: 3px; border-radius: 2px; vertical-align: middle; margin-right: 6px; }
+
+/* results view */
+.heads { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 700px) { .heads { grid-template-columns: minmax(0, 1fr); } }
+.head { background: var(--panel); border: 1px solid var(--line); border-left: 5px solid var(--smart); border-radius: 8px; padding: 14px 16px; }
+.head .big { font-size: 34px; font-weight: 700; color: var(--smart); line-height: 1.1; }
+.head p { margin: 2px 0 0; color: var(--sub); }
+.tablewrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 15.5px; }
+th, td { padding: 8px 10px; text-align: right; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th:first-child, td:first-child { text-align: left; }
+thead th { background: var(--navy); color: var(--navy-ink); font-weight: 600; }
+thead th:first-child { border-radius: 6px 0 0 0; } thead th:last-child { border-radius: 0 6px 0 0; }
+tbody tr td:first-child { border-left: 4px solid var(--c); font-weight: 600; }
+td a { color: var(--navy); }
+.best { font-weight: 700; }
+
+/* method view */
+.method { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
+@media (max-width: 900px) { .method { grid-template-columns: minmax(0, 1fr); } }
+.method p, .method li { max-width: 68ch; color: var(--sub); }
+.eq { font-style: italic; background: var(--raised); border-left: 3px solid var(--navy); padding: 8px 12px; margin: 8px 0; color: var(--ink); overflow-x: auto; white-space: nowrap; }
+.eq .n { float: right; font-style: normal; color: var(--mut); margin-left: 16px; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<header class="band">
+  <div class="band-in">
+    <p class="kicker">Quarter-car study · Force Traveller ambulance</p>
+    <h1>Ambulance Suspension Simulator</h1>
+    <p class="lede">The model from our presentation, running in your browser. Change the spring and the damper and see what the patient feels and how well the tyre grips.</p>
+    <nav aria-label="Views">
+      <a href="#simulate" id="nav-simulate">Simulate</a>
+      <a href="#results" id="nav-results">Our results</a>
+      <a href="#method" id="nav-method">Method</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+<!-- ===================== SIMULATE ===================== -->
+<section class="wrap" id="view-simulate">
+  <div class="sim">
+    <form class="rail card" id="controls" autocomplete="off">
+      <div style="display:grid;gap:8px">
+        <h3>Load a setup from the slides</h3>
+        <div class="presets">
+          <a href="#soft" id="pr-soft" style="--c:var(--soft)">Soft</a>
+          <a href="#stock" id="pr-stock" style="--c:var(--stock)">Stock</a>
+          <a href="#stiff" id="pr-stiff" style="--c:var(--stiff)">Stiff</a>
+          <a href="#smart" id="pr-smart" style="--c:var(--smart)">Smart damper</a>
+        </div>
+      </div>
+      <div class="ctl"><label for="fs">Spring, natural frequency f<sub>s</sub></label><output id="fs-o"></output>
+        <input type="range" id="fs" min="0.8" max="2.8" step="0.05" value="1.6"><span class="hint" id="fs-h"></span></div>
+      <div style="display:grid;gap:10px">
+        <h3>Damper</h3>
+        <div class="seg" role="group" aria-label="Damper type">
+          <button type="button" id="m-fixed" aria-pressed="true">Fixed</button>
+          <button type="button" id="m-smart" aria-pressed="false">Smart</button>
+        </div>
+        <div class="ctl" id="fixed-ctl"><label for="zeta">Damping ratio ζ</label><output id="zeta-o"></output>
+          <input type="range" id="zeta" min="0.05" max="1" step="0.05" value="0.3"><span class="hint" id="zeta-h"></span></div>
+        <div id="smart-ctl" hidden style="display:grid;gap:10px">
+          <div class="ctl"><label for="bs">Body gain b<sub>s</sub> (skyhook)</label><output id="bs-o"></output>
+            <input type="range" id="bs" min="0" max="40" step="0.5" value="16"><span class="hint">resists the body's motion</span></div>
+          <div class="ctl"><label for="bu">Wheel gain b<sub>u</sub></label><output id="bu-o"></output>
+            <input type="range" id="bu" min="0" max="10" step="0.1" value="0.8"><span class="hint">holds the wheel on the road</span></div>
+          <p class="fixed-note">Fixed by the hardware: damping 0.8–14 kN·s/m, valve response 5 ms.</p>
+        </div>
+      </div>
+      <p class="fixed-note">Van: m<sub>s</sub> = 1000 kg, m<sub>u</sub> = 100 kg, k<sub>t</sub> = 350 kN/m. Roads: ISO 8608 class C at 40 km/h; 7 cm pothole + 10 cm speed breaker at 30 km/h.</p>
+    </form>
+
+    <div class="right" aria-live="polite">
+      <div class="tiles">
+        <div class="tile" style="--c:var(--navy)"><h3>Comfort a<sub>w</sub></h3><div class="v" id="t-c"></div><span class="chip" id="t-band"></span><span class="d" id="t-c-d"></span></div>
+        <div class="tile" style="--c:var(--soft)"><h3>Grip loss g</h3><div class="v" id="t-g"></div><span class="d" id="t-g-d"></span><span class="w">tyre-load swing ÷ static load</span></div>
+        <div class="tile" style="--c:var(--stiff)"><h3>Peak jolt</h3><div class="v" id="t-j"></div><span class="d" id="t-j-d"></span><span class="w">pothole + speed breaker</span></div>
+        <div class="tile" style="--c:var(--smart)"><h3>Static sag</h3><div class="v" id="t-s"></div><span class="d" id="t-s-d"></span><span class="w">how far the van sits down</span></div>
+      </div>
+      <div class="derived" id="derived"></div>
+
+      <div class="card">
+        <div class="card-head"><h2>Bump test</h2>
+          <div class="legend"><span><i style="background:var(--x)" id="lg-you"></i>your setting</span><span><i style="background:var(--stock);opacity:.45"></i>stock van</span><span><i style="background:var(--stiff);opacity:.35;height:8px"></i>wheel off the road</span></div>
+        </div>
+        <canvas id="cv-bump" height="400" aria-label="Body acceleration, tyre load and damping over the pothole and speed breaker"></canvas>
+        <p class="cap" id="cap-bump"></p>
+      </div>
+
+      <div class="two">
+        <div class="card">
+          <div class="card-head"><h2>Where your setting sits</h2></div>
+          <canvas id="cv-map" height="320" aria-label="Your setting on the comfort-grip trade-off map"></canvas>
+          <p class="cap">Lines: the 27 fixed-damper runs from slide 5. <b>Lower left is better.</b> The large dot is your current setting.</p>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2>Which bumps get through</h2></div>
+          <canvas id="cv-freq" height="320" aria-label="Frequency response of body and wheel"></canvas>
+          <p class="cap" id="cap-freq"></p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== RESULTS ===================== -->
+<section class="wrap" id="view-results" hidden>
+  <div class="card-head"><h2>Our results</h2><span class="cap" style="margin:0">Readings reported in the presentation (Python, RK4, Δt = 0.5 ms). Each row opens in the simulator.</span></div>
+  <div class="heads">
+    <div class="head"><div class="big">−22%</div><p>shaking felt by the patient<br>a<sub>w</sub> 0.80 → 0.62 m/s²</p></div>
+    <div class="head"><div class="big">−26%</div><p>peak jolt in the bump test<br>11.5 → 8.5 m/s²</p></div>
+    <div class="head"><div class="big">same grip</div><p>grip loss 11.2% → 11.2%<br>with the stock spring</p></div>
+  </div>
+  <div class="card tablewrap">
+    <table>
+      <thead><tr><th>Setup</th><th>f<sub>s</sub> (Hz)</th><th>Damper</th><th>Sag (mm)</th><th>a<sub>w</sub> (m/s²)</th><th>Grip loss (%)</th><th>Peak jolt (m/s²)</th><th></th></tr></thead>
+      <tbody id="res-body"></tbody>
+    </table>
+  </div>
+  <div class="card" id="sweep">
+    <div class="card-head"><h2>Parameter sweep: no fixed setting gives both</h2>
+      <div class="legend"><span><i style="background:var(--soft)"></i>f<sub>s</sub> 1.0 Hz (sag 248 mm)</span><span><i style="background:var(--stock)"></i>1.6 Hz (97 mm)</span><span><i style="background:var(--stiff)"></i>2.4 Hz (43 mm)</span><span><i style="background:var(--smart);height:8px;width:8px;border-radius:50%"></i>smart damper</span></div>
+    </div>
+    <canvas id="cv-sweep" height="420" aria-label="Grip loss against discomfort for 27 fixed-damper settings and the smart damper"></canvas>
+    <p class="cap">Each dot is one spring + fixed damper (ζ = 0.1 to 0.9) on the same class C road. The smart damper (teal) sits to the left of every passive line: more comfortable at the same grip. Click a dot to open it in the simulator.</p>
+  </div>
+</section>
+
+<!-- ===================== METHOD ===================== -->
+<section class="wrap" id="view-method" hidden>
+  <div class="method">
+    <div class="card">
+      <h2>Model</h2>
+      <p>One rear corner of the ambulance: the body m<sub>s</sub> sits on a spring k<sub>s</sub> and damper c<sub>s</sub>, which sit on the wheel m<sub>u</sub>, which sits on the tyre k<sub>t</sub>. Newton's second law for each mass:</p>
+      <div class="eq">m<sub>s</sub> z̈<sub>s</sub> = −k<sub>s</sub>(z<sub>s</sub> − z<sub>u</sub>) − c<sub>s</sub>(ż<sub>s</sub> − ż<sub>u</sub>)<span class="n">(1)</span></div>
+      <div class="eq">m<sub>u</sub> z̈<sub>u</sub> = k<sub>s</sub>(z<sub>s</sub> − z<sub>u</sub>) + c<sub>s</sub>(ż<sub>s</sub> − ż<sub>u</sub>) − F<sub>t</sub><span class="n">(2)</span></div>
+      <p>The tyre force F<sub>t</sub> = min{k<sub>t</sub>(z<sub>u</sub> − z<sub>r</sub>), F<sub>0</sub>}: a tyre can push on the road but cannot pull it. F<sub>t</sub> = 0 means the wheel is off the road.</p>
+      <table style="margin-top:8px">
+        <thead><tr><th>Quantity</th><th>Value</th></tr></thead>
+        <tbody>
+          <tr><td style="--c:var(--line)">body mass m<sub>s</sub></td><td>1000 kg</td></tr>
+          <tr><td style="--c:var(--line)">wheel + axle mass m<sub>u</sub></td><td>100 kg</td></tr>
+          <tr><td style="--c:var(--line)">tyre stiffness k<sub>t</sub></td><td>350 kN/m</td></tr>
+          <tr><td style="--c:var(--navy)">spring k<sub>s</sub> = m<sub>s</sub>(2πf<sub>s</sub>)²</td><td>you choose</td></tr>
+          <tr><td style="--c:var(--navy)">damper c<sub>s</sub> = 2ζ√(k<sub>s</sub>m<sub>s</sub>)</td><td>you choose</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="card">
+      <h2>Measures and roads</h2>
+      <ul>
+        <li><b>Comfort a<sub>w</sub></b>: RMS body acceleration, weighted for human sensitivity (ISO 2631-1). Rough road: ISO 8608 class C, 300 m at 40 km/h.</li>
+        <li><b>Grip loss g</b>: RMS swing of the tyre force divided by the static load F<sub>0</sub> = (m<sub>s</sub> + m<sub>u</sub>)g. Same rough road.</li>
+        <li><b>Peak jolt</b>: largest body acceleration over a 7 cm pothole and a 10 cm IRC:99 speed breaker at 30 km/h.</li>
+      </ul>
+      <h2 style="margin-top:14px">Smart damper</h2>
+      <p>The damper aims for the force</p>
+      <div class="eq">F* = b<sub>s</sub> ż<sub>s</sub> − b<sub>u</sub> ż<sub>u</sub><span class="n">(5)</span></div>
+      <p>and sets c = F* / (ż<sub>s</sub> − ż<sub>u</sub>), kept between 0.8 and 14 kN·s/m. If F* would need a push, it goes to the softest setting. The valve takes about 5 ms to respond. Study gains: b<sub>s</sub> = 16, b<sub>u</sub> = 0.8 kN·s/m.</p>
+      <p>Solved with fourth-order Runge–Kutta, 0.5 ms steps, about 78,000 steps per change. This page uses the same equations, road profile and settings as the slides and reproduces their numbers to within 0.001 m/s².</p>
+    </div>
+  </div>
+</section>
+</main>
+
+<script>
+/* Quarter-car simulation core: same model, road and metrics as sim.py */
+const SimCore = (() => {
+  const G = 9.81, DT = 5e-4;
+  const NF = 600, N0 = 0.1;
+  const NS = new Float64Array(NF);
+  for (let i = 0; i < NF; i++) NS[i] = 0.011 + (2.83 - 0.011) * i / (NF - 1);
+  const DN = NS[1] - NS[0];
+  const ROAD_CLASS = { A: 16e-6, B: 64e-6, C: 256e-6, D: 1024e-6, E: 4096e-6 };
+
+  // ISO 8608 random profile as a sum of 600 sinusoids (rotation recurrence = fast cos)
+  function randomProfile(nPts, dx, gd, phases) {
+    const z = new Float64Array(nPts);
+    for (let k = 0; k < NF; k++) {
+      const amp = Math.sqrt(2 * gd * Math.pow(NS[k] / N0, -2) * DN);
+      const w = 2 * Math.PI * NS[k] * dx;
+      const cw = Math.cos(w), sw = Math.sin(w);
+      let c = Math.cos(phases[k]), s = Math.sin(phases[k]);
+      for (let i = 0; i < nPts; i++) {
+        z[i] += amp * c;
+        const c2 = c * cw - s * sw; s = s * cw + c * sw; c = c2;
+      }
+    }
+    return z;
+  }
+
+  // road: {kind:'rough'|'events', cls, speedKmh, potholeDepth, bumpHeight}
+  function makeRoad(road, phases) {
+    const v = road.speedKmh / 3.6;
+    const length = road.kind === 'rough' ? 300 : 100;
+    const n = Math.floor(length / v / DT - 1e-9) + 1;
+    const dx = v * DT;
+    const gd = road.kind === 'rough' ? ROAD_CLASS[road.cls] : ROAD_CLASS.A;
+    const z = randomProfile(n, dx, gd, road.kind === 'rough' ? phases.rough : phases.event);
+    if (road.kind === 'events') {
+      const p0 = 30, pl = 0.9, pd = road.potholeDepth, s0 = 70, sw = 3.7, sh = road.bumpHeight;
+      for (let i = 0; i < n; i++) {
+        const x = i * dx;
+        if (x > p0 && x < p0 + pl) z[i] -= pd * Math.pow(Math.sin(Math.PI * (x - p0) / pl), 2);
+        if (x > s0 && x < s0 + sw) z[i] += sh * Math.sin(Math.PI * (x - s0) / sw);
+      }
+    }
+    return { z, dx, n, v };
+  }
+
+  // p: {ms, mu, kt, ks, cs, smart, alpha, csky, cgnd, cmin, cmax}
+  function simulate(p, road) {
+    const { ms, mu, kt, ks } = p, z = road.z, n = road.n;
+    const fstat = (ms + mu) * G;
+    const acc = new Float64Array(n), ft = new Float64Array(n), trav = new Float64Array(n), cl = new Float64Array(n);
+    let xs = 0, vs = 0, xu = 0, vu = 0;
+    let cAct = p.smart ? p.cmin : p.cs;
+    const d = new Float64Array(4);
+    function deriv(xs_, vs_, xu_, vu_, zr, c, out) {
+      const fs = ks * (xs_ - xu_) + c * (vs_ - vu_);
+      const f = Math.min(kt * (xu_ - zr), fstat);
+      out[0] = vs_; out[1] = -fs / ms; out[2] = vu_; out[3] = (fs - f) / mu;
+    }
+    const k1 = new Float64Array(4), k2 = new Float64Array(4), k3 = new Float64Array(4), k4 = new Float64Array(4);
+    for (let i = 0; i < n; i++) {
+      if (p.smart) {
+        const rel = vs - vu;
+        const num = p.bs * vs - p.bu * vu;
+        let c = (num * rel > 0) ? num / rel : p.cmin;
+        if (!isFinite(c)) c = p.cmin;
+        c = Math.min(Math.max(c, p.cmin), p.cmax);
+        cAct += (c - cAct) * (DT / 0.005);
+      }
+      const c = cAct;
+      const z0 = z[i], z1 = z[Math.min(i + 1, n - 1)], zh = 0.5 * (z0 + z1);
+      deriv(xs, vs, xu, vu, z0, c, k1);
+      deriv(xs + DT / 2 * k1[0], vs + DT / 2 * k1[1], xu + DT / 2 * k1[2], vu + DT / 2 * k1[3], zh, c, k2);
+      deriv(xs + DT / 2 * k2[0], vs + DT / 2 * k2[1], xu + DT / 2 * k2[2], vu + DT / 2 * k2[3], zh, c, k3);
+      deriv(xs + DT * k3[0], vs + DT * k3[1], xu + DT * k3[2], vu + DT * k3[3], z1, c, k4);
+      xs += DT / 6 * (k1[0] + 2 * k2[0] + 2 * k3[0] + k4[0]);
+      vs += DT / 6 * (k1[1] + 2 * k2[1] + 2 * k3[1] + k4[1]);
+      xu += DT / 6 * (k1[2] + 2 * k2[2] + 2 * k3[2] + k4[2]);
+      vu += DT / 6 * (k1[3] + 2 * k2[3] + 2 * k3[3] + k4[3]);
+      acc[i] = -(ks * (xs - xu) + c * (vs - vu)) / ms;
+      ft[i] = -Math.min(kt * (xu - z1), fstat);
+      trav[i] = xs - xu;
+      cl[i] = c;
+    }
+    return { acc, ft, trav, cl, fstat };
+  }
+
+  // in-place radix-2 FFT
+  function fft(re, im, inverse) {
+    const n = re.length;
+    for (let i = 1, j = 0; i < n; i++) {
+      let bit = n >> 1;
+      for (; j & bit; bit >>= 1) j ^= bit;
+      j ^= bit;
+      if (i < j) { let t = re[i]; re[i] = re[j]; re[j] = t; t = im[i]; im[i] = im[j]; im[j] = t; }
+    }
+    for (let len = 2; len <= n; len <<= 1) {
+      const ang = 2 * Math.PI / len * (inverse ? 1 : -1);
+      const wr = Math.cos(ang), wi = Math.sin(ang);
+      for (let i = 0; i < n; i += len) {
+        let cr = 1, ci = 0;
+        for (let j = 0; j < len / 2; j++) {
+          const a = i + j, b = a + len / 2;
+          const tr = re[b] * cr - im[b] * ci, ti = re[b] * ci + im[b] * cr;
+          re[b] = re[a] - tr; im[b] = im[a] - ti; re[a] += tr; im[a] += ti;
+          const ncr = cr * wr - ci * wi; ci = cr * wi + ci * wr; cr = ncr;
+        }
+      }
+    }
+    if (inverse) for (let i = 0; i < n; i++) { re[i] /= n; im[i] /= n; }
+  }
+
+  // ISO 2631-1 Wk frequency weighting magnitude/phase as complex gain
+  function wkGain(f) {
+    const s = { re: 0, im: 2 * Math.PI * f };
+    const mul = (a, b) => ({ re: a.re * b.re - a.im * b.im, im: a.re * b.im + a.im * b.re });
+    const div = (a, b) => { const d = b.re * b.re + b.im * b.im; return { re: (a.re * b.re + a.im * b.im) / d, im: (a.im * b.re - a.re * b.im) / d }; };
+    const add = (...xs) => xs.reduce((p, q) => ({ re: p.re + q.re, im: p.im + q.im }), { re: 0, im: 0 });
+    const sc = (a, k) => ({ re: a.re * k, im: a.im * k });
+    const r = (x) => ({ re: x, im: 0 });
+    const s2 = mul(s, s);
+    const w1 = 2 * Math.PI * 0.4, w2 = 2 * Math.PI * 100, q = 1 / Math.SQRT2;
+    const w3 = 2 * Math.PI * 12.5, w4 = w3, q4 = 0.63, w5 = 2 * Math.PI * 2.37, w6 = 2 * Math.PI * 3.35, q5 = 0.91;
+    const hh = div(s2, add(s2, sc(s, w1 / q), r(w1 * w1)));
+    const hl = div(r(w2 * w2), add(s2, sc(s, w2 / q), r(w2 * w2)));
+    const ht = div(add(r(1), sc(s, 1 / w3)), add(r(1), sc(s, 1 / (q4 * w4)), sc(s2, 1 / (w4 * w4))));
+    const hs = div(add(s2, sc(s, w5 / q5), r(w5 * w5)), add(s2, sc(s, w6 / q5), r(w6 * w6)));
+    return mul(mul(hh, hl), mul(ht, hs));
+  }
+
+  function weightedRms(acc) {
+    const n = acc.length; let N = 1; while (N < n) N <<= 1;
+    const re = new Float64Array(N), im = new Float64Array(N);
+    re.set(acc);
+    fft(re, im, false);
+    for (let k = 0; k <= N / 2; k++) {
+      const g = wkGain(k / (N * DT));
+      const a = re[k], b = im[k];
+      re[k] = a * g.re - b * g.im; im[k] = a * g.im + b * g.re;
+      if (k > 0 && k < N / 2) { re[N - k] = re[k]; im[N - k] = -im[k]; }
+    }
+    fft(re, im, true);
+    let sum = 0; for (let i = 0; i < n; i++) sum += re[i] * re[i];
+    return Math.sqrt(sum / n);
+  }
+
+  function metrics(r) {
+    const n = r.acc.length; let ss = 0, minF = Infinity, maxT = 0, pk = 0, air = 0, cs = 0;
+    for (let i = 0; i < n; i++) {
+      ss += r.ft[i] * r.ft[i];
+      if (r.ft[i] < minF) minF = r.ft[i];
+      const t = Math.abs(r.trav[i]); if (t > maxT) maxT = t;
+      const a = Math.abs(r.acc[i]); if (a > pk) pk = a;
+      if (r.ft[i] <= -r.fstat + 1) air++;
+      cs += r.cl[i];
+    }
+    return {
+      comfort: weightedRms(r.acc),
+      grip: Math.sqrt(ss / n) / r.fstat * 100,
+      minload: (r.fstat + minF) / r.fstat * 100,
+      travel: maxT * 1000,
+      peak: pk,
+      airborne: air * DT * 1000,
+      meanC: cs / n,
+    };
+  }
+
+  // analytic frequency response |Xs/Xr|, |Xu/Xr|
+  function freqResponse(p, c, freqs) {
+    const out = { body: [], wheel: [] };
+    for (const f of freqs) {
+      const w = 2 * Math.PI * f;
+      const A = { re: -p.ms * w * w + p.ks, im: w * c };
+      const B = { re: p.ks, im: w * c };
+      const C = { re: -p.mu * w * w + p.ks + p.kt, im: w * c };
+      const mul = (a, b) => ({ re: a.re * b.re - a.im * b.im, im: a.re * b.im + a.im * b.re });
+      const div = (a, b) => { const d = b.re * b.re + b.im * b.im; return { re: (a.re * b.re + a.im * b.im) / d, im: (a.im * b.re - a.re * b.im) / d }; };
+      const BB_A = div(mul(B, B), A);
+      const den = { re: C.re - BB_A.re, im: C.im - BB_A.im };
+      const Xu = div({ re: p.kt, im: 0 }, den);
+      const Xs = mul(div(B, A), Xu);
+      out.body.push(Math.hypot(Xs.re, Xs.im)); out.wheel.push(Math.hypot(Xu.re, Xu.im));
+    }
+    return out;
+  }
+
+  return { G, DT, makeRoad, simulate, metrics, freqResponse, wkGain, ROAD_CLASS };
+})();
+if (typeof module !== 'undefined') module.exports = SimCore;
+
+const PHASES = {"rough": [3.927591, 5.637361, 4.873777, 1.415019, 1.886, 5.488698, 0.033083, 5.15993, 5.008135, 2.940122, 1.904009, 1.7494, 1.601393, 2.796497, 3.17017, 3.477726, 6.254913, 4.980442, 3.909267, 6.21382, 1.352824, 1.006642, 3.8487, 0.276096, 0.224186, 3.235142, 2.929259, 5.762735, 3.953545, 3.230296, 3.121948, 1.555182, 0.074104, 1.208898, 4.348166, 1.260449, 2.321865, 0.023463, 5.215344, 0.970508, 1.681376, 5.53129, 3.20311, 5.322802, 4.019462, 4.660684, 0.574884, 3.400107, 3.190427, 5.474787, 2.269889, 3.758501, 0.372289, 2.435562, 2.029697, 0.943733, 5.129204, 2.384131, 6.149654, 3.707027, 3.801681, 4.008651, 4.250262, 0.947429, 2.766571, 1.505225, 2.528971, 0.60761, 6.081043, 1.35091, 4.220825, 1.887595, 5.491988, 4.160818, 0.826967, 5.309759, 5.937284, 5.679477, 3.579651, 0.913952, 1.209284, 5.830203, 3.47037, 1.134445, 5.554693, 4.031114, 3.579495, 2.364286, 2.582108, 1.504755, 0.239121, 5.505445, 2.938836, 3.440893, 2.024212, 4.720714, 0.158317, 2.338509, 0.190697, 0.772154, 6.076772, 4.132833, 2.690587, 3.290756, 5.484022, 2.162739, 3.708908, 4.295716, 2.233131, 3.261592, 4.808191, 5.712542, 0.949152, 5.864847, 0.03254, 4.731097, 5.09269, 0.859314, 2.632049, 5.122406, 0.089669, 3.948743, 4.982715, 3.223297, 4.560646, 1.422661, 1.247345, 2.281594, 1.127241, 2.174368, 5.957239, 3.602356, 2.136711, 1.70604, 5.981841, 2.792739, 6.160002, 3.239124, 3.274583, 5.63313, 4.666945, 3.64835, 2.680718, 5.517817, 2.586449, 5.797869, 0.431751, 2.70175, 3.264208, 5.974921, 1.577075, 5.064493, 4.250394, 4.505584, 3.956033, 6.104496, 2.090299, 2.502439, 1.274932, 0.318583, 1.337742, 5.752032, 5.278936, 0.706266, 3.793656, 3.01088, 3.736515, 4.142347, 1.926798, 6.040346, 2.926959, 3.946474, 3.991244, 1.155411, 0.388712, 2.585636, 4.800543, 5.12219, 4.586658, 0.711288, 5.738778, 5.039344, 5.514697, 3.288017, 5.753107, 0.293125, 0.19031, 0.127018, 1.588192, 1.56181, 1.178118, 3.562917, 0.244955, 3.709516, 1.043079, 4.259206, 0.13242, 1.95137, 5.895772, 3.382844, 5.099354, 4.1345, 3.83746, 1.201676, 3.609029, 0.249357, 5.037006, 6.032303, 5.365897, 0.318618, 2.127864, 1.998073, 0.708222, 3.937118, 5.010577, 1.97117, 5.42119, 5.008496, 0.811398, 4.818318, 5.54567, 1.239563, 3.604294, 4.013384, 3.82856, 0.604729, 4.154388, 3.970689, 5.176625, 5.048619, 2.055658, 4.536757, 5.449239, 5.610556, 1.014812, 0.167776, 4.089144, 1.348851, 3.541893, 5.936382, 2.383335, 1.588229, 2.868337, 4.129585, 0.635224, 2.391285, 0.840195, 4.162272, 5.218515, 2.367842, 2.33561, 3.389915, 1.351248, 1.55452, 2.072523, 2.87409, 0.512277, 4.729555, 3.638307, 1.883032, 0.487239, 4.795207, 0.823594, 0.836962, 0.821113, 0.510586, 5.695031, 1.691712, 1.925234, 5.232601, 3.895094, 1.175857, 2.732013, 5.553849, 2.358545, 4.466601, 0.608261, 4.569916, 4.878727, 5.188446, 4.23613, 2.329383, 0.403456, 3.259567, 4.759261, 1.199072, 1.672818, 3.368542, 4.701906, 5.633421, 0.790057, 1.157804, 5.023639, 4.049649, 4.530006, 6.262898, 5.901042, 5.296883, 4.882763, 2.481979, 4.028961, 1.158906, 4.772044, 4.760711, 4.532031, 2.794755, 2.376177, 2.637499, 0.209477, 5.30502, 3.40781, 2.434851, 3.443366, 4.534199, 2.396789, 5.219069, 5.777159, 2.434309, 0.865924, 4.777566, 6.238882, 0.929837, 4.477873, 5.18566, 5.784124, 0.775228, 0.576859, 6.20698, 0.733603, 1.110915, 3.612536, 2.804016, 4.714853, 1.197307, 5.745519, 1.364675, 4.832467, 0.424765, 2.974476, 0.20457, 1.971731, 1.961803, 4.522313, 2.858959, 0.356724, 6.254042, 5.583862, 5.757433, 1.54928, 2.476268, 1.427411, 0.78481, 0.207495, 3.162556, 0.773672, 1.107753, 5.406528, 3.042587, 1.154243, 4.208883, 1.670478, 3.310844, 1.777845, 3.243136, 3.949193, 3.369095, 2.485654, 4.96883, 5.487969, 1.127023, 0.856453, 0.711204, 6.154988, 5.916193, 1.449325, 6.094109, 1.305757, 3.182283, 3.125162, 5.748837, 0.25465, 1.981408, 3.769752, 0.417192, 1.486291, 2.92208, 5.534588, 4.78125, 5.208638, 4.781942, 4.446741, 5.338781, 4.281844, 4.622433, 1.895288, 1.053318, 4.753387, 1.041986, 5.777111, 3.748818, 2.069896, 5.885103, 0.974712, 3.232487, 0.575251, 6.065961, 3.615194, 5.049586, 1.771371, 5.037837, 4.416086, 4.04437, 5.972562, 2.723706, 2.608078, 4.348725, 5.246807, 2.105345, 4.207579, 1.313421, 3.466433, 4.832848, 0.410386, 4.573167, 0.096965, 6.021491, 2.944739, 2.570268, 4.526687, 3.287984, 4.592059, 0.53255, 3.536126, 3.5067, 5.856644, 0.248849, 2.84515, 3.965148, 3.460445, 0.465968, 3.727364, 1.396104, 1.228672, 5.520978, 1.243079, 2.854393, 4.714192, 4.444194, 3.477485, 5.070818, 2.926809, 3.897997, 5.145405, 4.260575, 4.032727, 2.551782, 3.50805, 2.488661, 4.676526, 2.390313, 2.931867, 4.746677, 3.164563, 2.123921, 5.195057, 2.393659, 5.307589, 4.933811, 2.810399, 4.479226, 0.216077, 2.449176, 5.405636, 3.641353, 3.504923, 4.176678, 4.257936, 3.666856, 2.642892, 1.152862, 1.838724, 1.840484, 2.70645, 6.277271, 2.215149, 2.810967, 2.335005, 3.653218, 5.955822, 5.58621, 2.369633, 1.676989, 5.55684, 3.102846, 4.307382, 0.460504, 5.444743, 1.966418, 3.107205, 1.244203, 2.640462, 5.202785, 5.199834, 2.976169, 4.824925, 2.878119, 2.345867, 3.429922, 1.265061, 1.989015, 4.439251, 4.841282, 0.356308, 4.604482, 5.136064, 2.797234, 0.39241, 4.290871, 1.546692, 4.042333, 2.366389, 4.003416, 1.621909, 2.99417, 3.296629, 3.964773, 1.276541, 6.044745, 1.816708, 1.922781, 1.610458, 0.423966, 2.657303, 4.849591, 4.458341, 1.228818, 0.860369, 2.019591, 4.827089, 3.066685, 5.800537, 4.124181, 3.901272, 4.823546, 4.714012, 2.160399, 1.614831, 2.749656, 3.074031, 0.89047, 2.772972, 4.020128, 0.852719, 0.867318, 1.091524, 1.780224, 6.042598, 0.162051, 1.154467, 1.037026, 2.980417, 0.094705, 2.878787, 1.023672, 1.694199, 4.979051, 1.156528, 3.877535, 2.552935, 2.62383, 5.132391, 1.011058, 5.804471, 5.613969, 4.199191, 0.310687, 4.16769, 3.772096, 4.851913, 1.343543, 5.990112, 5.568141, 0.718527, 1.980472, 0.203853, 5.220995, 5.74971, 6.219155, 3.844838, 4.184511, 4.262548, 3.582348, 5.98425, 3.819305, 2.109429, 3.222503, 0.117262, 4.54982, 4.360035, 2.645542], "event": [5.350013, 4.74711, 2.115452, 0.486934, 0.830782, 1.157817, 1.909573, 2.811824, 5.830774, 1.749351, 5.64598, 4.27547, 5.362654, 2.533716, 0.020588, 4.944662, 1.54237, 0.89523, 5.023354, 4.31233, 1.334644, 1.681266, 5.901292, 1.687274, 4.413346, 0.814007, 5.121021, 0.73884, 3.242382, 0.221279, 3.456245, 5.31948, 0.530291, 1.723205, 4.804708, 3.820794, 1.965361, 3.95152, 2.857029, 5.418344, 1.840596, 4.760962, 3.994059, 4.65225, 2.376688, 4.554813, 4.388341, 2.434665, 0.166204, 6.050163, 4.483684, 1.286411, 4.591797, 1.751019, 2.948607, 5.402837, 2.81532, 1.809599, 1.919457, 0.483914, 1.379194, 1.703411, 1.086797, 0.396254, 2.92664, 1.347091, 4.641832, 5.796413, 1.715213, 3.595542, 3.183851, 0.471921, 0.784609, 5.559233, 2.979185, 5.055513, 0.418339, 3.737321, 5.436915, 5.447937, 0.035955, 3.278064, 2.318525, 4.775485, 0.460049, 1.664583, 5.105985, 2.950309, 2.847227, 6.085633, 2.009932, 0.262147, 2.464271, 0.963675, 0.514542, 3.567972, 5.991492, 3.640525, 4.065941, 2.03342, 3.588471, 4.726492, 3.702586, 5.044005, 3.458709, 1.244976, 3.661377, 3.084641, 1.042604, 3.890334, 5.133114, 0.848781, 3.423996, 4.609892, 2.532234, 1.696751, 2.339107, 3.403592, 4.314414, 3.513402, 0.672458, 5.138932, 5.804782, 0.636442, 1.567777, 1.091271, 5.335399, 5.71945, 0.27818, 2.088653, 1.209479, 2.950161, 5.790523, 0.440911, 1.076178, 3.060095, 3.292607, 4.684123, 2.750062, 0.886788, 2.221809, 6.170673, 4.716926, 0.731013, 5.078128, 1.953609, 4.909659, 0.079931, 5.474352, 1.019826, 2.863565, 4.157933, 3.191039, 1.039225, 0.874107, 1.787782, 0.329187, 1.360591, 0.817474, 2.920406, 2.240018, 3.687176, 1.764814, 0.213069, 2.080427, 4.74494, 1.607479, 2.541853, 4.743644, 2.555254, 5.573965, 5.768395, 1.951115, 4.624196, 1.590381, 0.876651, 2.751288, 3.785446, 5.878491, 0.916726, 4.475907, 2.987432, 0.827554, 6.111391, 4.371645, 0.809643, 5.691029, 0.64776, 0.582195, 2.083196, 5.893371, 0.207499, 5.769266, 3.842869, 0.421298, 3.572567, 2.882667, 3.543619, 4.631986, 4.26389, 6.265765, 0.984381, 5.107321, 2.582973, 4.921666, 5.603214, 6.232908, 1.67159, 2.845895, 5.923657, 5.942249, 2.342835, 5.90751, 2.550289, 2.354725, 4.75398, 2.960711, 2.816114, 2.426057, 2.719387, 0.8785, 0.383508, 4.737479, 3.546858, 4.221613, 5.041222, 1.4458, 1.468839, 1.746151, 1.909617, 4.779562, 2.351052, 2.030656, 3.998001, 1.172257, 0.668658, 4.380217, 4.752886, 1.862114, 3.996365, 0.214109, 2.540411, 3.631419, 1.592276, 2.187899, 3.829913, 3.706437, 0.968809, 4.439585, 0.502839, 6.09296, 1.271478, 1.59309, 1.258525, 6.229772, 1.800729, 3.803164, 6.224338, 5.969452, 0.266092, 3.274696, 3.778109, 4.413278, 2.11058, 2.060311, 0.026917, 0.221399, 3.456111, 0.476813, 1.272227, 2.094009, 0.442784, 0.193898, 5.824013, 2.734496, 1.287327, 4.451334, 0.059347, 1.539489, 6.036568, 5.640354, 3.995636, 0.58561, 1.998372, 0.175505, 1.377218, 0.159807, 0.79271, 3.978604, 0.631101, 0.978688, 5.67251, 2.10771, 2.092281, 0.543744, 5.000979, 4.249804, 3.437737, 3.882461, 0.63071, 1.635551, 3.667128, 5.98305, 5.134191, 4.025802, 3.259833, 0.095078, 5.596535, 0.420057, 0.81104, 4.354698, 5.102851, 4.942044, 2.842539, 1.112474, 0.22181, 5.349376, 6.143054, 1.533949, 5.441718, 2.529176, 1.956231, 3.173978, 0.051322, 2.781657, 1.253841, 4.476501, 3.157749, 5.459162, 5.633807, 1.990255, 1.761703, 5.90073, 3.16671, 0.606425, 0.288305, 6.223027, 3.638992, 0.342389, 3.212313, 3.167382, 2.735622, 5.977071, 5.96131, 0.785195, 0.953289, 2.560326, 5.240343, 3.919153, 4.585658, 3.619482, 1.319827, 5.138172, 0.088096, 4.388706, 1.221072, 2.959955, 6.126943, 3.386862, 0.35782, 2.694103, 4.148581, 0.356299, 1.58747, 0.115209, 3.393349, 2.396894, 3.164778, 1.858798, 4.12684, 1.087532, 5.696663, 6.03237, 3.097571, 2.924132, 5.401131, 1.821105, 5.046062, 1.805207, 4.523672, 2.098655, 3.786258, 5.817402, 0.341333, 5.07213, 3.404516, 2.381752, 2.200846, 0.436129, 1.623441, 3.915285, 0.613176, 4.20601, 6.046016, 6.162398, 5.587267, 5.068085, 1.118114, 6.09567, 1.273747, 5.460401, 5.515843, 3.907565, 3.275467, 1.259309, 3.263916, 1.826019, 0.790932, 0.805449, 5.033906, 5.795631, 0.891388, 0.083322, 1.656453, 0.844705, 1.185175, 3.665151, 2.653352, 2.696926, 1.291902, 4.175734, 1.819046, 2.507914, 2.911716, 5.682667, 1.547899, 4.515512, 1.943821, 5.619846, 2.476074, 3.174025, 5.511706, 4.227081, 0.592874, 0.859765, 6.224955, 0.182874, 1.890434, 6.024911, 0.094914, 1.014093, 1.340607, 0.542809, 2.965421, 3.722397, 2.000073, 0.682666, 5.095387, 5.054643, 3.531778, 0.865459, 3.404929, 3.955416, 2.69104, 5.427814, 2.450728, 3.209998, 0.717184, 3.540894, 4.815735, 4.594632, 1.614658, 6.232079, 4.52348, 2.662515, 2.606947, 4.896646, 1.103845, 4.018898, 4.516602, 3.24426, 5.486467, 2.944527, 2.921007, 1.788695, 5.776582, 1.987182, 4.368518, 2.57204, 5.877443, 5.956204, 0.188717, 6.248839, 3.800926, 0.464035, 3.122937, 0.310841, 3.448802, 1.165245, 2.311837, 1.914487, 3.78381, 5.167053, 5.884433, 2.066276, 3.579467, 0.037066, 2.338372, 6.03628, 0.746685, 5.465289, 4.099811, 1.846589, 4.889329, 1.817608, 5.622289, 0.519991, 0.747655, 4.712466, 2.822271, 0.926539, 3.226001, 1.865912, 3.45145, 4.672892, 5.38368, 0.370709, 3.721875, 6.180555, 2.888992, 4.835329, 0.611107, 5.488412, 3.657146, 5.581122, 4.945608, 5.461595, 0.360001, 4.495771, 1.237668, 1.670136, 2.040671, 3.71534, 3.944966, 5.852426, 0.079912, 1.21541, 2.274529, 5.139689, 3.455179, 3.216932, 4.776389, 4.115859, 1.821218, 0.547369, 2.904759, 5.530249, 3.758231, 0.334825, 2.765086, 2.416589, 3.659484, 3.689026, 5.977395, 2.124306, 2.56414, 3.854822, 5.569357, 4.436833, 2.95866, 5.118069, 3.049268, 6.053993, 1.774996, 0.800427, 5.217556, 1.867985, 5.324348, 3.829003, 3.197886, 0.546837, 4.940566, 0.414215, 6.064223, 5.510194, 1.903608, 0.803407, 5.564857, 3.01499, 0.784605, 3.132307, 1.550811, 2.562505, 4.022753, 5.751407, 5.032391, 1.011649, 2.999189, 3.090875, 6.217104, 0.545995, 3.209248, 5.745113, 2.506044, 1.644422, 3.493033, 2.011175, 5.82501, 0.532806, 1.298784]};
+const STUDY = {"sweep":[[1.0,0.1,0.4682,14.444,6.293],[1.6,0.1,0.8008,14.996,10.631],[2.4,0.1,1.3594,22.723,17.696],[1.0,0.2,0.5194,10.963,8.873],[1.6,0.2,0.7543,11.869,10.337],[2.4,0.2,1.1509,17.633,16.308],[1.0,0.3,0.5931,9.941,10.573],[1.6,0.3,0.7972,11.218,11.485],[2.4,0.3,1.1198,16.059,15.139],[1.0,0.4,0.663,9.727,11.692],[1.6,0.4,0.8579,11.342,12.224],[2.4,0.4,1.1428,15.681,14.456],[1.0,0.5,0.7271,9.866,12.439],[1.6,0.5,0.9215,11.777,12.693],[2.4,0.5,1.1865,15.838,14.581],[1.0,0.6,0.7857,10.177,12.944],[1.6,0.6,0.9836,12.345,12.996],[2.4,0.6,1.2386,16.259,14.752],[1.0,0.7,0.8397,10.575,13.288],[1.6,0.7,1.0428,12.968,13.192],[2.4,0.7,1.2938,16.817,15.026],[1.0,0.8,0.8898,11.015,13.521],[1.6,0.8,1.099,13.609,13.323],[2.4,0.8,1.3494,17.444,15.421],[1.0,0.9,0.9365,11.474,13.681],[1.6,0.9,1.1523,14.25,13.408],[2.4,0.9,1.4045,18.105,15.921]],"res":{"soft":{"f":1.0,"zeta":0.15,"ks":39478.4176,"cs":1884.9556,"sag_mm":248.4902,"comfort":0.4861,"grip":12.1573,"jolt":7.708},"stock":{"f":1.6,"zeta":0.3,"ks":101064.7491,"cs":6031.8579,"sag_mm":97.0665,"comfort":0.7972,"grip":11.218,"jolt":11.4851},"stiff":{"f":2.4,"zeta":0.6,"ks":227395.6854,"cs":18095.5737,"sag_mm":43.1407,"comfort":1.2386,"grip":16.2592,"jolt":14.7522},"smart":{"ks":101064.7491,"b_s":16000.0,"b_u":800.0,"c_min":800.0,"c_max":14000.0,"tau":0.005,"comfort":0.6245,"grip":11.1632,"jolt":8.4963},"change_pct":{"comfort":-21.653,"jolt":-26.0238,"grip":-0.4885}}};
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const MS = 1000, MU = 100, KT = 350e3, G = SimCore.G;
+  const kOf = (f) => MS * (2 * Math.PI * f) ** 2, cOf = (z, k) => 2 * z * Math.sqrt(k * MS);
+  const STOCK = { ms: MS, mu: MU, kt: KT, ks: kOf(1.6), cs: cOf(0.3, kOf(1.6)), smart: false };
+  const PRESETS = { soft: { fs: 1.0, zeta: 0.15, smart: false }, stock: { fs: 1.6, zeta: 0.3, smart: false },
+                    stiff: { fs: 2.4, zeta: 0.6, smart: false }, smart: { fs: 1.6, zeta: 0.3, smart: true, bs: 16, bu: 0.8 } };
+  const ROUGH = SimCore.makeRoad({ kind: 'rough', cls: 'C', speedKmh: 40 }, PHASES);
+  const BUMP = SimCore.makeRoad({ kind: 'events', speedKmh: 30, potholeDepth: 0.07, bumpHeight: 0.10 }, PHASES);
+  let smart = false, last = null, ref = null;
+  const css = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+  function params() {
+    const fs = +$('fs').value, zeta = +$('zeta').value, ks = kOf(fs);
+    return { ms: MS, mu: MU, kt: KT, ks, cs: cOf(zeta, ks), fs, zeta, smart, bs: +$('bs').value * 1000, bu: +$('bu').value * 1000, cmin: 800, cmax: 14000 };
+  }
+  function getRef() {
+    if (!ref) { const r = SimCore.simulate(STOCK, ROUGH), b = SimCore.simulate(STOCK, BUMP); const mr = SimCore.metrics(r), mb = SimCore.metrics(b);
+      ref = { comfort: mr.comfort, grip: mr.grip, jolt: mb.peak, bump: b }; }
+    return ref;
+  }
+  function isoBand(a) {
+    if (a < 0.315) return ['not uncomfortable', 'var(--ok)']; if (a < 0.63) return ['a little uncomfortable', 'var(--ok)'];
+    if (a < 1.0) return ['fairly uncomfortable', 'var(--soft)']; if (a < 1.6) return ['uncomfortable', 'var(--stiff)'];
+    return ['very uncomfortable', 'var(--stiff)'];
+  }
+  function delta(el, cur, base, unit, dec) {
+    const pct = (cur / base - 1) * 100;
+    if (Math.abs(pct) < 0.5) { el.textContent = 'same as stock van'; el.className = 'd'; return; }
+    el.textContent = `${pct > 0 ? '+' : '−'}${Math.abs(pct).toFixed(0)}% vs stock (${base.toFixed(dec)}${unit})`;
+    el.className = 'd ' + (pct < 0 ? 'good' : 'bad');
+  }
+  function colourFor(p) {
+    if (p.smart) return css('--smart');
+    for (const [n, P] of Object.entries(PRESETS)) if (!P.smart && Math.abs(P.fs - p.fs) < 1e-6 && Math.abs(P.zeta - p.zeta) < 1e-6) return css('--' + n);
+    return css('--navy');
+  }
+
+  function run() {
+    const p = params(), R0 = getRef();
+    $('fs-o').textContent = `${p.fs.toFixed(2)} Hz`;
+    $('fs-h').textContent = `k_s = ${(p.ks / 1000).toFixed(0)} kN/m`.replace('k_s', 'kₛ');
+    $('zeta-o').textContent = p.zeta.toFixed(2); $('zeta-h').textContent = `c = ${(p.cs / 1000).toFixed(1)} kN·s/m`;
+    $('bs-o').textContent = `${(p.bs / 1000).toFixed(1)} kN·s/m`; $('bu-o').textContent = `${(p.bu / 1000).toFixed(1)} kN·s/m`;
+    const rr = SimCore.simulate(p, ROUGH), br = SimCore.simulate(p, BUMP);
+    const mr = SimCore.metrics(rr), mb = SimCore.metrics(br);
+    const sag = MS * G / p.ks * 1000, sagRef = MS * G / STOCK.ks * 1000;
+    $('t-c').innerHTML = `${mr.comfort.toFixed(2)}<small>m/s²</small>`; const [b, c] = isoBand(mr.comfort); $('t-band').textContent = b; $('t-band').style.color = c;
+    delta($('t-c-d'), mr.comfort, R0.comfort, ' m/s²', 2);
+    $('t-g').innerHTML = `${mr.grip.toFixed(1)}<small>%</small>`; delta($('t-g-d'), mr.grip, R0.grip, '%', 1);
+    $('t-j').innerHTML = `${mb.peak.toFixed(1)}<small>m/s²</small>`; delta($('t-j-d'), mb.peak, R0.jolt, ' m/s²', 1);
+    $('t-s').innerHTML = `${sag.toFixed(0)}<small>mm</small>`;
+    $('t-s-d').textContent = sag > 150 ? 'too much for a loaded leaf-sprung van' : (Math.abs(sag - sagRef) < 1 ? 'same as stock van' : `stock: ${sagRef.toFixed(0)} mm`);
+    $('t-s-d').className = 'd ' + (sag > 150 ? 'bad' : '');
+    const keq = p.ks * p.kt / (p.ks + p.kt), fb = Math.sqrt(keq / p.ms) / (2 * Math.PI), fw = Math.sqrt((p.ks + p.kt) / p.mu) / (2 * Math.PI);
+    $('derived').innerHTML = `<span>body bounce <b>${fb.toFixed(2)} Hz</b></span><span>wheel hop <b>${fw.toFixed(1)} Hz</b></span>` +
+      `<span>damping <b>${p.smart ? `${(mr.meanC / 1000).toFixed(1)} kN·s/m on average (0.8–14)` : `${(p.cs / 1000).toFixed(1)} kN·s/m, ζ = ${p.zeta.toFixed(2)}`}</b></span>`;
+    last = { p, br, mr, mb, col: colourFor(p) };
+    document.documentElement.style.setProperty('--x', last.col);
+    drawBump(); drawMap(); drawFreq();
+  }
+
+  // ---------- canvas helpers ----------
+  function setup(cv) {
+    if (!cv.dataset.h) cv.dataset.h = cv.getAttribute('height');
+    const dpr = window.devicePixelRatio || 1, w = cv.clientWidth, h = +cv.dataset.h;
+    cv.style.height = h + 'px'; cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
+    const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, w, h); return { g, w, h };
+  }
+  function ticks(lo, hi, n) {
+    const span = hi - lo, m = Math.pow(10, Math.floor(Math.log10(span / n)));
+    const st = [1, 2, 2.5, 5, 10].map((k) => k * m).find((s) => span / s <= n) || 10 * m;
+    const o = []; for (let v = Math.ceil(lo / st) * st; v <= hi + 1e-9; v += st) o.push(+v.toFixed(8)); return o;
+  }
+  const FONT = () => `13px ${css('--serif')}`;
+  function line(g, xs, ys, X, Y) { g.beginPath(); xs.forEach((x, i) => (i ? g.lineTo(X(x), Y(ys[i])) : g.moveTo(X(x), Y(ys[i])))); g.stroke(); }
+
+  function drawBump() {
+    const { p, br } = last, R0 = getRef();
+    const cv = $('cv-bump'); cv.dataset.h = p.smart ? 470 : 380;
+    const { g, w, h } = setup(cv);
+    const dx = BUMP.dx, fst = br.fstat;
+    const wins = [[28, 36, 'pothole (7 cm)'], [68, 78, 'speed breaker (10 cm)']];
+    const rows = [{ k: 'acc', lab: 'body accel. (m/s²)', f: (r, i) => r.acc[i] },
+                  { k: 'ft', lab: 'tyre load (%)', f: (r, i) => (fst + r.ft[i]) / fst * 100 }];
+    if (p.smart) rows.push({ k: 'c', lab: 'damping (kN·s/m)', f: (r, i) => r.cl[i] / 1000 });
+    const L = 62, Rm = 8, T = 22, B = 34, gapX = 18, gapY = 14;
+    const pw = (w - L - Rm - gapX) / 2, ph = (h - T - B - gapY * (rows.length - 1)) / rows.length;
+    g.font = FONT();
+    rows.forEach((row, ri) => {
+      let lo = Infinity, hi = -Infinity;
+      for (const [a, b] of wins) for (let i = Math.floor(a / dx); i < b / dx; i++) for (const r of [br, R0.bump]) { if (row.k === 'c' && r === R0.bump) continue; const v = row.f(r, i); if (v < lo) lo = v; if (v > hi) hi = v; }
+      if (row.k === 'ft') lo = Math.min(lo, 0); if (row.k === 'c') { lo = 0; hi = 15; }
+      const pad = (hi - lo) * 0.06; lo -= pad; hi += pad;
+      const top = T + ri * (ph + gapY), Y = (v) => top + ph - (v - lo) / (hi - lo) * ph;
+      g.save(); g.translate(14, top + ph / 2); g.rotate(-Math.PI / 2); g.textAlign = 'center'; g.fillStyle = css('--sub'); g.fillText(row.lab, 0, 0); g.restore();
+      wins.forEach(([a, b, name], ci) => {
+        const left = L + ci * (pw + gapX), X = (x) => left + (x - a) / (b - a) * pw;
+        g.strokeStyle = css('--line'); g.lineWidth = 1; g.strokeRect(left + .5, top + .5, pw - 1, ph - 1);
+        g.fillStyle = css('--mut'); g.textAlign = 'right'; g.textBaseline = 'middle';
+        for (const t of ticks(lo, hi, 3)) { const y = Math.round(Y(t)) + .5; g.globalAlpha = .5; g.beginPath(); g.moveTo(left, y); g.lineTo(left + pw, y); g.stroke(); g.globalAlpha = 1; if (ci === 0) g.fillText(String(t), left - 5, y); }
+        if (ri === 0) { g.textAlign = 'center'; g.textBaseline = 'bottom'; g.fillStyle = css('--sub'); g.fillText(name, left + pw / 2, T - 4); }
+        if (ri === rows.length - 1) { g.textAlign = 'center'; g.textBaseline = 'top'; g.fillStyle = css('--mut'); for (const t of ticks(a, b, 4)) g.fillText(String(t), X(t), top + ph + 5); }
+        const i0 = Math.floor(a / dx), i1 = Math.ceil(b / dx);
+        g.save(); g.beginPath(); g.rect(left, top, pw, ph); g.clip();
+        g.fillStyle = css('--stiff'); g.globalAlpha = .16; let s = -1;
+        for (let i = i0; i <= i1; i++) { const air = i < i1 && br.ft[i] <= -fst + 1; if (air && s < 0) s = i; if (!air && s >= 0) { g.fillRect(X(s * dx), top, Math.max(2, X(i * dx) - X(s * dx)), ph); s = -1; } }
+        g.globalAlpha = 1;
+        if (row.k === 'ft') { g.strokeStyle = css('--mut'); g.setLineDash([3, 4]); g.beginPath(); g.moveTo(left, Y(100)); g.lineTo(left + pw, Y(100)); g.stroke(); g.setLineDash([]); }
+        const xs = [], ys = [], yr = [];
+        const step = Math.max(1, Math.floor((i1 - i0) / (pw * 1.5)));
+        for (let i = i0; i < i1; i += step) { xs.push(i * dx); ys.push(row.f(br, i)); yr.push(row.k === 'c' ? R0 && STOCK.cs / 1000 : row.f(R0.bump, i)); }
+        g.lineWidth = 1.6; g.strokeStyle = css('--stock'); g.globalAlpha = .45; line(g, xs, yr, X, Y); g.globalAlpha = 1;
+        g.lineWidth = 2; g.strokeStyle = last.col; line(g, xs, ys, X, Y);
+        g.restore();
+      });
+    });
+    g.textAlign = 'center'; g.textBaseline = 'top'; g.fillStyle = css('--sub'); g.fillText('distance along the road (m)', L + (w - L - Rm) / 2, h - 16);
+    $('cap-bump').textContent = 'Van at 30 km/h over a 7 cm pothole and a 10 cm speed breaker. Tyre load 0% means the wheel has left the road.' + (p.smart ? ' Bottom row: the damping the controller chooses (stock damper: 6.0 kN·s/m).' : '');
+  }
+
+  function mapAxes(cv, h0) {
+    const { g, w, h } = setup(cv); const L = 52, Rm = 10, T = 10, B = 40;
+    const x0 = 0.4, x1 = 1.45, y0 = 9.2, y1 = 18.8;
+    const X = (v) => L + (v - x0) / (x1 - x0) * (w - L - Rm), Y = (v) => T + (1 - (v - y0) / (y1 - y0)) * (h - T - B);
+    g.font = FONT(); g.strokeStyle = css('--line'); g.fillStyle = css('--mut'); g.lineWidth = 1;
+    g.textAlign = 'center'; g.textBaseline = 'top';
+    for (const t of [0.4, 0.6, 0.8, 1.0, 1.2, 1.4]) { const x = Math.round(X(t)) + .5; g.beginPath(); g.moveTo(x, T); g.lineTo(x, h - B); g.stroke(); g.fillText(t.toFixed(1), x, h - B + 5); }
+    g.textAlign = 'right'; g.textBaseline = 'middle';
+    for (const t of [10, 12, 14, 16, 18]) { const y = Math.round(Y(t)) + .5; g.beginPath(); g.moveTo(L, y); g.lineTo(w - Rm, y); g.stroke(); g.fillText(String(t), L - 6, y); }
+    g.fillStyle = css('--sub'); g.textAlign = 'center'; g.textBaseline = 'bottom'; g.fillText('discomfort aw (m/s²)', L + (w - L - Rm) / 2, h - 2);
+    g.save(); g.translate(13, T + (h - T - B) / 2); g.rotate(-Math.PI / 2); g.textBaseline = 'middle'; g.fillText('grip loss (%)', 0, 0); g.restore();
+    return { g, w, h, X, Y, L, T, B, Rm };
+  }
+  function drawStudy(ax, big) {
+    const { g, X, Y } = ax;
+    g.save(); g.beginPath(); g.rect(ax.L, ax.T, ax.w - ax.L - ax.Rm, ax.h - ax.T - ax.B); g.clip();
+    for (const [fr, col] of [[1.0, '--soft'], [1.6, '--stock'], [2.4, '--stiff']]) {
+      const pts = STUDY.sweep.filter((r) => r[0] === fr).sort((a, b) => a[1] - b[1]);
+      g.strokeStyle = css(col); g.fillStyle = css(col); g.lineWidth = big ? 2 : 1.5; g.globalAlpha = big ? 1 : .55;
+      g.beginPath(); pts.forEach((r, i) => (i ? g.lineTo(X(r[2]), Y(r[3])) : g.moveTo(X(r[2]), Y(r[3])))); g.stroke();
+      for (const r of pts) { g.beginPath(); g.arc(X(r[2]), Y(r[3]), big ? 4 : 2.6, 0, 7); g.fill(); }
+    }
+    g.globalAlpha = 1;
+    const sm = STUDY.res.smart; g.fillStyle = css('--smart'); star(g, X(sm.comfort), Y(sm.grip), big ? 11 : 8);
+    g.restore();
+  }
+  function star(g, x, y, r) { g.beginPath(); for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 ? r * 0.45 : r; g.lineTo(x + rr * Math.cos(a), y + rr * Math.sin(a)); } g.closePath(); g.fill(); }
+
+  function drawMap() {
+    const ax = mapAxes($('cv-map')); drawStudy(ax, false);
+    const { g, X, Y } = ax, m = last.mr;
+    const x = Math.min(Math.max(X(m.comfort), ax.L + 6), ax.w - ax.Rm - 6), y = Math.min(Math.max(Y(m.grip), ax.T + 6), ax.h - ax.B - 6);
+    g.fillStyle = last.col; g.strokeStyle = css('--panel'); g.lineWidth = 2.5; g.beginPath(); g.arc(x, y, 8, 0, 7); g.fill(); g.stroke();
+    g.fillStyle = css('--ink'); g.font = `600 13px ${css('--serif')}`; g.textAlign = 'left'; g.textBaseline = 'bottom'; g.fillText('you', x + 10, y - 4);
+  }
+
+  let sweepHits = [];
+  function drawSweep() {
+    const cv = $('cv-sweep'); if (!cv.clientWidth) return;
+    const ax = mapAxes(cv); drawStudy(ax, true);
+    const { g, X, Y } = ax, st = STUDY.res.stock, sm = STUDY.res.smart;
+    g.strokeStyle = css('--ink'); g.lineWidth = 1.5; g.beginPath(); g.arc(X(st.comfort), Y(st.grip), 9, 0, 7); g.stroke();
+    g.font = `13px ${css('--serif')}`; g.fillStyle = css('--ink'); g.textAlign = 'left'; g.textBaseline = 'bottom'; g.fillText('stock van (ζ = 0.3)', X(st.comfort) + 12, Y(st.grip) - 8);
+    g.strokeStyle = css('--smart'); g.lineWidth = 1.5; g.beginPath(); g.moveTo(X(st.comfort) - 11, Y(st.grip)); g.lineTo(X(sm.comfort) + 14, Y(sm.grip)); g.stroke();
+    g.fillStyle = css('--smart'); g.textAlign = 'right'; g.textBaseline = 'top'; g.font = `600 13px ${css('--serif')}`; g.fillText('smart damper', X(sm.comfort) + 30, Y(sm.grip) + 12);
+    sweepHits = STUDY.sweep.map((r) => ({ x: X(r[2]), y: Y(r[3]), fs: r[0], z: r[1] }));
+  }
+  $('cv-sweep').addEventListener('click', (e) => {
+    const b = e.target.getBoundingClientRect(), x = e.clientX - b.left, y = e.clientY - b.top;
+    let best = null, d0 = 14; for (const h of sweepHits) { const d = Math.hypot(h.x - x, h.y - y); if (d < d0) { d0 = d; best = h; } }
+    if (best) { apply({ fs: best.fs, zeta: best.z, smart: false }); location.hash = '#simulate'; }
+  });
+
+  function drawFreq() {
+    const p = last.p, cv = $('cv-freq'), { g, w, h } = setup(cv);
+    const L = 46, Rm = 10, T = 10, B = 40, f0 = 0.3, f1 = 30, y0 = 0.01, y1 = 6;
+    const X = (f) => L + Math.log(f / f0) / Math.log(f1 / f0) * (w - L - Rm), Y = (v) => T + (1 - Math.log(Math.max(v, y0) / y0) / Math.log(y1 / y0)) * (h - T - B);
+    const fr = []; for (let i = 0; i < 300; i++) fr.push(f0 * Math.pow(f1 / f0, i / 299));
+    g.fillStyle = css('--band'); g.fillRect(X(4), T, X(8) - X(4), h - T - B);
+    g.font = FONT(); g.strokeStyle = css('--line'); g.fillStyle = css('--mut'); g.lineWidth = 1; g.textAlign = 'center'; g.textBaseline = 'top';
+    for (const f of [0.5, 1, 2, 4, 8, 16]) { const x = Math.round(X(f)) + .5; g.beginPath(); g.moveTo(x, T); g.lineTo(x, h - B); g.stroke(); g.fillText(String(f), x, h - B + 5); }
+    g.textAlign = 'right'; g.textBaseline = 'middle';
+    for (const v of [0.01, 0.1, 1]) { const y = Math.round(Y(v)) + .5; g.beginPath(); g.moveTo(L, y); g.lineTo(w - Rm, y); g.stroke(); g.fillText(String(v), L - 6, y); }
+    g.fillStyle = css('--sub'); g.textAlign = 'center'; g.textBaseline = 'bottom'; g.fillText('road bump frequency (Hz)', L + (w - L - Rm) / 2, h - 2);
+    g.fillStyle = css('--soft'); g.textBaseline = 'bottom'; g.fillText('4–8 Hz: felt most', (X(4) + X(8)) / 2, h - B - 4);
+    const plot = (c, dash) => { const r = SimCore.freqResponse(p, c, fr); g.setLineDash(dash);
+      g.strokeStyle = last.col; g.lineWidth = 2.2; g.beginPath(); fr.forEach((f, i) => (i ? g.lineTo(X(f), Y(r.body[i])) : g.moveTo(X(f), Y(r.body[i])))); g.stroke();
+      g.strokeStyle = css('--mut'); g.lineWidth = 1.4; g.beginPath(); fr.forEach((f, i) => (i ? g.lineTo(X(f), Y(r.wheel[i])) : g.moveTo(X(f), Y(r.wheel[i])))); g.stroke(); g.setLineDash([]); };
+    if (p.smart) { plot(14000, [6, 4]); plot(800, []); } else plot(p.cs, []);
+    $('cap-freq').textContent = (p.smart ? 'Solid: softest valve setting; dashed: firmest. The smart damper moves between them. ' : '') + 'Coloured line: body; grey: wheel. Above 1 means the bump is amplified.';
+  }
+
+  // ---------- results table ----------
+  function results() {
+    const rows = [['soft', 'Soft', '1.0', 'fixed, ζ = 0.15'], ['stock', 'Stock', '1.6', 'fixed, ζ = 0.30'], ['stiff', 'Stiff', '2.4', 'fixed, ζ = 0.60'], ['smart', 'Smart damper', '1.6', 'semi-active, Eq. (5)']];
+    const R = STUDY.res, sag = (k) => (MS * G / (R[k].ks || R.stock.ks) * 1000).toFixed(0);
+    const minC = Math.min(...['soft', 'stock', 'stiff', 'smart'].map((k) => R[k].comfort));
+    $('res-body').innerHTML = rows.map(([k, n, fs, d]) => `<tr><td style="--c:var(--${k})">${n}</td><td>${fs}</td><td>${d}</td><td>${sag(k)}</td>` +
+      `<td>${R[k].comfort.toFixed(2)}</td><td>${R[k].grip.toFixed(1)}</td><td>${R[k].jolt.toFixed(1)}</td><td><a href="#${k}">Open in simulator</a></td></tr>`).join('');
+  }
+
+  // ---------- routing ----------
+  function apply(P) {
+    $('fs').value = P.fs; $('zeta').value = P.zeta; setMode(P.smart);
+    if (P.smart) { $('bs').value = P.bs; $('bu').value = P.bu; }
+  }
+  function setMode(s) { smart = s; $('m-fixed').setAttribute('aria-pressed', String(!s)); $('m-smart').setAttribute('aria-pressed', String(s)); $('fixed-ctl').hidden = s; $('smart-ctl').hidden = !s; }
+  function markPreset(name) { for (const k of Object.keys(PRESETS)) $('pr-' + k).setAttribute('aria-current', String(k === name)); }
+  function route() {
+    const hsh = (location.hash || '#simulate').slice(1);
+    let view = 'simulate';
+    if (PRESETS[hsh]) { apply(PRESETS[hsh]); markPreset(hsh); }
+    else if (hsh === 'results' || hsh === 'sweep') view = 'results';
+    else if (hsh === 'method') view = 'method';
+    for (const v of ['simulate', 'results', 'method']) { $('view-' + v).hidden = v !== view; $('nav-' + v).setAttribute('aria-current', v === view ? 'page' : 'false'); }
+    if (view === 'simulate') schedule();
+    if (view === 'results') { requestAnimationFrame(() => { drawSweep(); if (hsh === 'sweep') $('sweep').scrollIntoView({ block: 'start' }); }); }
+  }
+  let pend = false; function schedule() { if (pend) return; pend = true; requestAnimationFrame(() => { pend = false; run(); }); }
+  $('controls').addEventListener('input', () => { markPreset(''); schedule(); });
+  $('controls').addEventListener('submit', (e) => e.preventDefault());
+  $('m-fixed').addEventListener('click', () => { setMode(false); markPreset(''); schedule(); });
+  $('m-smart').addEventListener('click', () => { setMode(true); markPreset(''); schedule(); });
+  window.addEventListener('hashchange', route);
+  const redraw = () => { if (!$('view-simulate').hidden && last) { drawBump(); drawMap(); drawFreq(); } if (!$('view-results').hidden) drawSweep(); };
+  let rz; window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(redraw, 120); });
+  new MutationObserver(() => { if (last) last.col = colourFor(last.p); redraw(); }).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', () => { if (last) last.col = colourFor(last.p); redraw(); });
+  if (document.fonts) document.fonts.ready.then(redraw);
+  results();
+  if (!location.hash) markPreset('stock');
+  route();
+})();
+</script>
+
+</body></html>
